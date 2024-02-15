@@ -1,0 +1,88 @@
+
+//+------------------------------------------------------------------+
+//|                                                     Ultimate Fractals MT4 |
+//|                      Copyright © 2021 forexroboteasy.com |
+//|                                        Developed by Forex Robot Easy Team |
+//+------------------------------------------------------------------+
+
+// Fractal parameters
+input int period = 14; // Number of bars to calculate the fractals
+input int volatilityThreshold = 20; // Minimum volatility required to consider a fractal
+
+//+------------------------------------------------------------------+
+//| Custom indicator initialization function |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+     // Add indicator buffers
+     SetIndexBuffer(0, ExtFractalsBuffer);
+     
+     // Set indicator parameters
+     SetIndexStyle(0, DRAW_ARROW);
+     SetIndexArrow(0, 159);
+     SetIndexEmptyValue(0, 0);
+     
+     // Set indicator labels
+     SetIndexLabel(0, 'Fractals');
+     
+     return INIT_SUCCEEDED;
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator iteration function |
+//+------------------------------------------------------------------+
+int OnCalculate(const int rates_total, const int prev_calculated, const datetime &time[], const double &open[], const double &high[], const double &low[], const double &close[], const long &tick_volume[], const long &volume[], const int &spread[])
+{
+     // Calculate fractals
+     int calculated = BarsCalculated(ExtFractalsBuffer);
+     if (calculated < rates_total)
+     {
+          int startBar = calculated - period;
+          if (startBar < 0) startBar = 0;
+          
+          for (int i = startBar; i < rates_total; i++)
+          {
+               double fractalHigh = iHighest(NULL, 0, MODE_HIGH, period, i);
+               double fractalLow = iLowest(NULL, 0, MODE_LOW, period, i);
+               
+               if (IsFractal(fractalHigh, fractalLow, i))
+               {
+                    if (IsStrongTrend(fractalHigh, fractalLow, i))
+                    {
+                         ExtFractalsBuffer[i] = fractalHigh;
+                         ExtFractalsBuffer[i+1] = fractalLow;
+                    }
+                    else
+                    {
+                         ExtFractalsBuffer[i] = fractalLow;
+                         ExtFractalsBuffer[i+1] = fractalHigh;
+                    }
+               }
+          }
+     }
+     
+     return rates_total;
+}
+
+//+------------------------------------------------------------------+
+//| Check if a fractal is valid |
+//+------------------------------------------------------------------+
+bool IsFractal(const double high, const double low, const int index)
+{
+     double prevHigh = iHigh(NULL, 0, index + 1);
+     double nextHigh = iHigh(NULL, 0, index - 1);
+     double prevLow = iLow(NULL, 0, index + 1);
+     double nextLow = iLow(NULL, 0, index - 1);
+     
+     return (high > prevHigh && high > nextHigh && low > prevLow && low > nextLow) || (high < prevHigh && high < nextHigh && low < prevLow && low < nextLow);
+}
+
+//+------------------------------------------------------------------+
+//| Check if a fractal indicates a strong trend |
+//+------------------------------------------------------------------+
+bool IsStrongTrend(const double high, const double low, const int index)
+{
+     double volatility = iATR(NULL, 0, period, index);
+     
+     return volatility > volatilityThreshold;
+}
